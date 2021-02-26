@@ -20,6 +20,7 @@ import info.nightscout.androidaps.MainApp
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.data.Profile
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.databinding.DialogWizardBinding
 import info.nightscout.androidaps.events.EventAutosensCalculationFinished
 import info.nightscout.androidaps.interfaces.ActivePluginProvider
@@ -206,7 +207,7 @@ class WizardDialog : DaggerDialogFragment() {
 
     private fun onCheckedChanged(buttonView: CompoundButton, @Suppress("UNUSED_PARAMETER") state: Boolean) {
         saveCheckedStates()
-        binding.ttcheckbox.isEnabled = binding.bgcheckbox.isChecked && repository.getTemporaryTargetActiveAt(dateUtil._now()) != null
+        binding.ttcheckbox.isEnabled = binding.bgcheckbox.isChecked && repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet() is ValueWrapper.Existing
         if (buttonView.id == binding.cobcheckbox.id)
             processCobCheckBox()
         calculateInsulin()
@@ -270,7 +271,7 @@ class WizardDialog : DaggerDialogFragment() {
         } else {
             binding.bgInput.value = 0.0
         }
-        binding.ttcheckbox.isEnabled = repository.getTemporaryTargetActiveAt(dateUtil._now()) != null
+        binding.ttcheckbox.isEnabled = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet() is ValueWrapper.Existing
 
         // IOB calculation
         treatmentsPlugin.updateTotalIOBTreatments()
@@ -312,7 +313,8 @@ class WizardDialog : DaggerDialogFragment() {
         }
 
         bg = if (binding.bgcheckbox.isChecked) bg else 0.0
-        val tempTarget = if (binding.ttcheckbox.isChecked) repository.getTemporaryTargetActiveAt(dateUtil._now()) else null
+        val dbRecord = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+        val tempTarget = if (binding.ttcheckbox.isChecked && dbRecord is ValueWrapper.Existing)  dbRecord.value else null
 
         // COB
         var cob = 0.0

@@ -16,6 +16,7 @@ import info.nightscout.androidaps.data.GlucoseValueDataPoint
 import info.nightscout.androidaps.data.IobTotal
 import info.nightscout.androidaps.data.Profile
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.database.entities.GlucoseValue
 import info.nightscout.androidaps.interfaces.ActivePluginProvider
 import info.nightscout.androidaps.interfaces.LoopInterface
@@ -216,11 +217,11 @@ class GraphData(
         lastRun?.constraintsProcessed?.let { toTime = max(it.latestPredictionsTime, toTime) }
         var time = fromTime
         while (time < toTime) {
-            val tt = repository.getTemporaryTargetActiveAt(time)
-            val value: Double = if (tt == null) {
-                Profile.fromMgdlToUnits((profile.getTargetLowMgdl(time) + profile.getTargetHighMgdl(time)) / 2, units)
+            val tt = repository.getTemporaryTargetActiveAt(time).blockingGet()
+            val value: Double = if (tt is ValueWrapper.Existing) {
+                Profile.fromMgdlToUnits(tt.value.target(), units)
             } else {
-                Profile.fromMgdlToUnits(tt.target(), units)
+                Profile.fromMgdlToUnits((profile.getTargetLowMgdl(time) + profile.getTargetHighMgdl(time)) / 2, units)
             }
             if (lastTarget != value) {
                 if (lastTarget != -1.0) targetsSeriesArray.add(DataPoint(time.toDouble(), lastTarget))
@@ -410,7 +411,7 @@ class GraphData(
         if (showPrediction) {
             val autosensData = iobCobCalculatorPlugin.getLastAutosensDataSynchronized("GraphData")
             val lastAutosensResult = autosensData?.autosensResult ?: AutosensResult()
-            val isTempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now()) != null
+            val isTempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet() is ValueWrapper.Existing
             val iobPrediction: MutableList<DataPointWithLabelInterface> = ArrayList()
             val iobPredictionArray = iobCobCalculatorPlugin.calculateIobArrayForSMB(lastAutosensResult, SMBDefaults.exercise_mode, SMBDefaults.half_basal_exercise_target, isTempTarget)
             for (i in iobPredictionArray) {

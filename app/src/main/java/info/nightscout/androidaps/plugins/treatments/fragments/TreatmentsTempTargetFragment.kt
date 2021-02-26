@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import dagger.android.support.DaggerFragment
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.database.entities.TemporaryTarget
 import info.nightscout.androidaps.database.interfaces.end
 import info.nightscout.androidaps.databinding.TreatmentsTemptargetFragmentBinding
@@ -29,14 +30,16 @@ import info.nightscout.androidaps.utils.FabricPrivacy
 import info.nightscout.androidaps.utils.T
 import info.nightscout.androidaps.utils.alertDialogs.OKDialog
 import info.nightscout.androidaps.utils.buildHelper.BuildHelper
-import info.nightscout.androidaps.utils.extensions.toVisibility
 import info.nightscout.androidaps.utils.extensions.friendlyDescription
 import info.nightscout.androidaps.utils.extensions.highValueToUnitsToString
 import info.nightscout.androidaps.utils.extensions.lowValueToUnitsToString
+import info.nightscout.androidaps.utils.extensions.toVisibility
 import info.nightscout.androidaps.utils.resources.ResourceHelper
 import info.nightscout.androidaps.utils.rx.AapsSchedulers
 import info.nightscout.androidaps.utils.sharedPreferences.SP
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxkotlin.plusAssign
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class TreatmentsTempTargetFragment : DaggerFragment() {
@@ -57,6 +60,8 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
     private val disposable = CompositeDisposable()
 
     private var _binding: TreatmentsTemptargetFragmentBinding? = null
+
+    private val millsToThePast = T.days(30).msecs()
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -85,12 +90,22 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
     @Synchronized
     override fun onResume() {
         super.onResume()
-        disposable.add(rxBus
-            .toObservable(EventTempTargetChange::class.java)
+        val now = System.currentTimeMillis()
+        disposable += repository
+            .compatGetTemporaryTargetDataFromTime(now - millsToThePast, false)
             .observeOn(aapsSchedulers.main)
-            .subscribe({ updateGui() }, fabricPrivacy::logException)
-        )
-        updateGui()
+            .subscribe { list -> binding.recyclerview.adapter = RecyclerViewAdapter(list) }
+
+        disposable += rxBus
+            .toObservable(EventTempTargetChange::class.java)
+            .observeOn(aapsSchedulers.io)
+            .debounce(1L, TimeUnit.SECONDS)
+            .subscribe({
+                disposable += repository
+                    .compatGetTemporaryTargetDataFromTime(now - millsToThePast, false)
+                    .observeOn(aapsSchedulers.main)
+                    .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
+            }, fabricPrivacy::logException)
     }
 
     @Synchronized
@@ -102,17 +117,14 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
     @Synchronized
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.recyclerview.adapter = null // avoid leaks
         _binding = null
-    }
-
-    private fun updateGui() {
-        if (_binding == null) return
-        binding.recyclerview.swapAdapter(RecyclerViewAdapter(repository.compatGetTemporaryTargetData().reversed()), false)
     }
 
     inner class RecyclerViewAdapter internal constructor(private var tempTargetList: List<TemporaryTarget>) : RecyclerView.Adapter<TempTargetsViewHolder>() {
 
-        private var currentlyActiveTarget: TemporaryTarget? = repository.getTemporaryTargetActiveAt(System.currentTimeMillis())
+        private val dbRecord = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+        private val currentlyActiveTarget = if (dbRecord is ValueWrapper.Existing) dbRecord.value else null
 
         override fun onCreateViewHolder(viewGroup: ViewGroup, viewType: Int): TempTargetsViewHolder =
             TempTargetsViewHolder(LayoutInflater.from(viewGroup.context).inflate(R.layout.treatments_temptarget_item, viewGroup, false))

@@ -4,6 +4,7 @@ import dagger.android.HasAndroidInjector
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.data.Profile
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.database.entities.GlucoseValue
 import info.nightscout.androidaps.interfaces.ProfileFunction
 import info.nightscout.androidaps.logging.AAPSLogger
@@ -77,7 +78,8 @@ class QuickWizardEntry @Inject constructor(private val injector: HasAndroidInjec
     fun isActive(): Boolean = Profile.secondsFromMidnight() >= validFrom() && Profile.secondsFromMidnight() <= validTo()
 
     fun doCalc(profile: Profile, profileName: String, lastBG: GlucoseValue, _synchronized: Boolean): BolusWizard {
-        val tempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now())
+        val dbRecord = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+        val tempTarget = if (dbRecord is ValueWrapper.Existing)  dbRecord.value else null
         //BG
         var bg = 0.0
         if (useBG() == YES) {

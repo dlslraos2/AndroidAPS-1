@@ -384,7 +384,7 @@ class OpenHumansUploader @Inject constructor(
             .andThen(Observable.defer { Observable.fromIterable(MainApp.getDbHelper().allTemporaryBasals) })
             .map { enqueueTemporaryBasal(it); increaseCounter() }
             .ignoreElements()
-            .andThen(Observable.defer { Observable.fromIterable(repository.compatGetTemporaryTargetData()) })
+            .andThen(Observable.defer { Observable.fromIterable(repository.compatGetTemporaryTargetData().blockingGet()) })
             .map { enqueueTempTarget(it); increaseCounter() }
             .ignoreElements()
             .doOnSubscribe {

@@ -15,6 +15,7 @@ import info.nightscout.androidaps.danars.DanaRSPlugin
 import info.nightscout.androidaps.data.DetailedBolusInfo
 import info.nightscout.androidaps.data.Profile
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.database.entities.TemporaryTarget
 import info.nightscout.androidaps.database.interfaces.end
 import info.nightscout.androidaps.database.transactions.CancelCurrentTemporaryTargetIfAnyTransaction
@@ -214,7 +215,10 @@ class ActionStringHandler @Inject constructor(
             }
             val format = DecimalFormat("0.00")
             val formatInt = DecimalFormat("0")
-            val bolusWizard = BolusWizard(injector).doCalc(profile, profileName, repository.getTemporaryTargetActiveAt(dateUtil._now()),
+            val dbRecord = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+            val tempTarget = if (dbRecord is ValueWrapper.Existing)  dbRecord.value else null
+
+            val bolusWizard = BolusWizard(injector).doCalc(profile, profileName, tempTarget,
                 carbsAfterConstraints, if (cobInfo.displayCob != null) cobInfo.displayCob!! else 0.0, bgReading.valueToUnits(profileFunction.getUnits()),
                 0.0, percentage.toDouble(), useBG, useCOB, useBolusIOB, useBasalIOB, false, useTT, useTrend, false)
             if (Math.abs(bolusWizard.insulinAfterConstraints - bolusWizard.calculatedTotalInsulin) >= 0.01) {
@@ -450,10 +454,10 @@ class ActionStringHandler @Inject constructor(
             }
             val profile = profileFunction.getProfile() ?: return "No profile set :("
             //Check for Temp-Target:
-            val tempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now())
-            if (tempTarget != null) {
-                ret += "Temp Target: " + Profile.toTargetRangeString(tempTarget.lowTarget, tempTarget.lowTarget, Constants.MGDL, profileFunction.getUnits())
-                ret += "\nuntil: " + dateUtil.timeString(tempTarget.end)
+            val tempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+            if (tempTarget is ValueWrapper.Existing) {
+                ret += "Temp Target: " + Profile.toTargetRangeString(tempTarget.value.lowTarget, tempTarget.value.lowTarget, Constants.MGDL, profileFunction.getUnits())
+                ret += "\nuntil: " + dateUtil.timeString(tempTarget.value.end)
                 ret += "\n\n"
             }
             ret += "DEFAULT RANGE: "

@@ -36,7 +36,7 @@ internal interface TemporaryTargetDao : TraceableDao<TemporaryTarget> {
     fun compatGetTemporaryTargetDataFromTime(timestamp: Long): Single<List<TemporaryTarget>>
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE isValid = 1 AND referenceId IS NULL ORDER BY timestamp ASC")
-    fun compatGetTemporaryTargetData(): List<TemporaryTarget>
+    fun compatGetTemporaryTargetData(): Single<List<TemporaryTarget>>
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE referenceId = :id ORDER BY id DESC LIMIT 1")
     fun getLastHistoryRecord(id: Long): TemporaryTarget?

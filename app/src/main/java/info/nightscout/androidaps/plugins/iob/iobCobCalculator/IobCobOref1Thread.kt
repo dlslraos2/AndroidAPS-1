@@ -7,6 +7,7 @@ import dagger.android.HasAndroidInjector
 import info.nightscout.androidaps.Constants
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.database.AppRepository
+import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.events.Event
 import info.nightscout.androidaps.interfaces.ProfileFunction
 import info.nightscout.androidaps.logging.AAPSLogger
@@ -295,9 +296,9 @@ class IobCobOref1Thread internal constructor(
                     // TODO AS-FIX
                     @Suppress("SimplifyBooleanWithConstants")
                     if (false && sp.getBoolean(R.string.key_high_temptarget_raises_sensitivity, SMBDefaults.high_temptarget_raises_sensitivity)) {
-                        val tempTarget = repository.getTemporaryTargetActiveAt(bgTime)
-                        if (tempTarget != null && tempTarget.target() >= 100) {
-                            autosensData.extraDeviation.add(-(tempTarget.target() - 100) / 20)
+                        val tempTarget = repository.getTemporaryTargetActiveAt(dateUtil._now()).blockingGet()
+                         if (tempTarget is ValueWrapper.Existing && tempTarget.value.target() >= 100) {
+                            autosensData.extraDeviation.add(-(tempTarget.value.target() - 100) / 20)
                         }
                     }
 

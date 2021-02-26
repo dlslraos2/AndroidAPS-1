@@ -89,8 +89,9 @@ class AppRepository @Inject internal constructor(
             .subscribeOn(Schedulers.io())
 
     // TEMP TARGETS
-    fun compatGetTemporaryTargetData(): List<TemporaryTarget> =
+    fun compatGetTemporaryTargetData(): Single<List<TemporaryTarget>> =
         database.temporaryTargetDao.compatGetTemporaryTargetData()
+            .subscribeOn(Schedulers.io())
 
     fun compatGetTemporaryTargetDataFromTime(timestamp: Long, ascending: Boolean): Single<List<TemporaryTarget>> =
         database.temporaryTargetDao.compatGetTemporaryTargetDataFromTime(timestamp)
@@ -98,7 +99,9 @@ class AppRepository @Inject internal constructor(
             .subscribeOn(Schedulers.io())
 
     fun findTemporaryTargetByNSIdSingle(nsId: String): Single<ValueWrapper<TemporaryTarget>> =
-        database.temporaryTargetDao.findByNSIdMaybe(nsId).toWrappedSingle()
+        database.temporaryTargetDao.findByNSIdMaybe(nsId)
+            .subscribeOn(Schedulers.io())
+            .toWrappedSingle()
 
     fun getModifiedTemporaryTargetsDataFromId(lastId: Long): Single<List<TemporaryTarget>> =
         database.temporaryTargetDao.getModifiedFrom(lastId)
@@ -108,7 +111,9 @@ class AppRepository @Inject internal constructor(
         database.temporaryTargetDao.getLastHistoryRecord(lastId)
 
     fun getTemporaryTargetActiveAt(timestamp: Long): Single<ValueWrapper<TemporaryTarget>> =
-        database.temporaryTargetDao.getTemporaryTargetActiveAt(timestamp).toWrappedSingle()
+        database.temporaryTargetDao.getTemporaryTargetActiveAt(timestamp)
+            .subscribeOn(Schedulers.io())
+            .toWrappedSingle()
 
     fun deleteAllTempTargetEntries() =
         database.temporaryTargetDao.deleteAllEntries()
