@@ -29,6 +29,9 @@ import info.nightscout.androidaps.Config;
 import info.nightscout.androidaps.Constants;
 import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
+import info.nightscout.androidaps.database.AppRepository;
+import info.nightscout.androidaps.database.entities.TemporaryTarget;
+import info.nightscout.androidaps.database.transactions.InsertTemporaryTargetAndCancelCurrentTransaction;
 import info.nightscout.androidaps.db.CareportalEvent;
 import info.nightscout.androidaps.events.EventAppExit;
 import info.nightscout.androidaps.events.EventChargingState;
@@ -63,6 +66,8 @@ import info.nightscout.androidaps.utils.rx.AapsSchedulers;
 import info.nightscout.androidaps.utils.sharedPreferences.SP;
 import io.reactivex.disposables.CompositeDisposable;
 
+import static info.nightscout.androidaps.utils.extensions.TemporaryTargetExtensionKt.temporaryTargetFromJson;
+
 @Singleton
 public class NSClientPlugin extends PluginBase {
     private final CompositeDisposable disposable = new CompositeDisposable();
@@ -78,6 +83,7 @@ public class NSClientPlugin extends PluginBase {
     private final BuildHelper buildHelper;
     private final ActivePluginProvider activePlugin;
     private final NSUpload nsUpload;
+    private final AppRepository repository;
 
     public Handler handler;
 
@@ -107,7 +113,8 @@ public class NSClientPlugin extends PluginBase {
             Config config,
             BuildHelper buildHelper,
             ActivePluginProvider activePlugin,
-            NSUpload nsUpload
+            NSUpload nsUpload,
+            AppRepository repository
     ) {
         super(new PluginDescription()
                         .mainType(PluginType.GENERAL)
@@ -132,6 +139,7 @@ public class NSClientPlugin extends PluginBase {
         this.buildHelper = buildHelper;
         this.activePlugin = activePlugin;
         this.nsUpload = nsUpload;
+        this.repository = repository;
 
         if (config.getNSCLIENT()) {
             getPluginDescription().alwaysEnabled(true).visibleByDefault(true);
@@ -407,7 +415,7 @@ public class NSClientPlugin extends PluginBase {
         rxBus.send(evtTreatment);
         // old DB model
         String _id = JsonHelper.safeGetString(json, "_id");
-        MainApp.getDbHelper().deleteTempTargetById(_id);
+        repository.deleteTemporaryTargetByNSId(_id);
         MainApp.getDbHelper().deleteTempBasalById(_id);
         MainApp.getDbHelper().deleteExtendedBolusById(_id);
         MainApp.getDbHelper().deleteCareportalEventById(_id);
@@ -428,7 +436,12 @@ public class NSClientPlugin extends PluginBase {
             EventNsTreatment evtTreatment = new EventNsTreatment(mode, json);
             rxBus.send(evtTreatment);
         } else if (eventType.equals(CareportalEvent.TEMPORARYTARGET)) {
-            MainApp.getDbHelper().createTemptargetFromJsonIfNotExists(json);
+            TemporaryTarget temporaryTarget = temporaryTargetFromJson(json);
+            if (temporaryTarget != null) {
+                disposable.add(repository.runTransactionForResult(new InsertTemporaryTargetAndCancelCurrentTransaction(temporaryTarget)).subscribe());
+            } else {
+                aapsLogger.error("Error parsing TT json " + json.toString());
+            }
         } else if (eventType.equals(CareportalEvent.TEMPBASAL)) {
             MainApp.getDbHelper().createTempBasalFromJsonIfNotExists(json);
         } else if (eventType.equals(CareportalEvent.COMBOBOLUS)) {

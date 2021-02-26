@@ -91,7 +91,7 @@ public class DanaRKoreanPlugin extends AbstractDanaRPlugin {
                         boolean previousValue = useExtendedBoluses;
                         useExtendedBoluses = sp.getBoolean(R.string.key_danar_useextended, false);
 
-                        if (useExtendedBoluses != previousValue && activePlugin.getActiveTreatments().isInHistoryExtendedBoluslInProgress()) {
+                        if (useExtendedBoluses != previousValue && activePlugin.getActiveTreatments().isInHistoryExtendedBolusInProgress()) {
                             sExecutionService.extendedBolusStop();
                         }
                     }
@@ -336,7 +336,7 @@ public class DanaRKoreanPlugin extends AbstractDanaRPlugin {
     public PumpEnactResult cancelTempBasal(boolean force) {
         if (activePlugin.getActiveTreatments().isInHistoryRealTempBasalInProgress())
             return cancelRealTempBasal();
-        if (activePlugin.getActiveTreatments().isInHistoryExtendedBoluslInProgress() && useExtendedBoluses) {
+        if (activePlugin.getActiveTreatments().isInHistoryExtendedBolusInProgress() && useExtendedBoluses) {
             return cancelExtendedBolus();
         }
         PumpEnactResult result = new PumpEnactResult(getInjector());

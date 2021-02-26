@@ -81,15 +81,6 @@
                 android:text="" />
 
             <TextView
-                android:id="@+id/ph"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="10dp"
-                android:text="PH"
-                android:textColor="@color/colorSetTempButton"
-                tools:ignore="HardcodedText" />
-
-            <TextView
                 android:id="@+id/ns"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

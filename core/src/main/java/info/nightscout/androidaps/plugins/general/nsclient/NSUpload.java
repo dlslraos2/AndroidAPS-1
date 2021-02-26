@@ -20,12 +20,12 @@ import info.nightscout.androidaps.data.DetailedBolusInfo;
 import info.nightscout.androidaps.data.IobTotal;
 import info.nightscout.androidaps.data.Profile;
 import info.nightscout.androidaps.database.entities.GlucoseValue;
+import info.nightscout.androidaps.database.entities.TemporaryTarget;
 import info.nightscout.androidaps.db.CareportalEvent;
 import info.nightscout.androidaps.db.DbRequest;
 import info.nightscout.androidaps.db.ExtendedBolus;
 import info.nightscout.androidaps.db.ProfileSwitch;
 import info.nightscout.androidaps.db.Source;
-import info.nightscout.androidaps.db.TempTarget;
 import info.nightscout.androidaps.db.TemporaryBasal;
 import info.nightscout.androidaps.interfaces.DatabaseHelperInterface;
 import info.nightscout.androidaps.interfaces.IobCobCalculatorInterface;
@@ -59,6 +59,7 @@ public class NSUpload {
     private final UploadQueueInterface uploadQueue;
     private final DatabaseHelperInterface databaseHelper;
     private final RunningConfiguration runningConfiguration;
+    private final ProfileFunction profileFunction;
 
     @Inject
     public NSUpload(
@@ -69,7 +70,8 @@ public class NSUpload {
             Context context,
             UploadQueueInterface uploadQueue,
             RunningConfiguration runningConfiguration,
-            DatabaseHelperInterface databaseHelper
+            DatabaseHelperInterface databaseHelper,
+            ProfileFunction profileFunction
     ) {
         this.injector = injector;
         this.aapsLogger = aapsLogger;
@@ -79,6 +81,7 @@ public class NSUpload {
         this.uploadQueue = uploadQueue;
         this.runningConfiguration = runningConfiguration;
         this.databaseHelper = databaseHelper;
+        this.profileFunction = profileFunction;
     }
 
     public void uploadTempBasalStartAbsolute(TemporaryBasal temporaryBasal, Double originalExtendedAmount) {
@@ -291,18 +294,31 @@ public class NSUpload {
         }
     }
 
-    public void uploadTempTarget(TempTarget tempTarget, ProfileFunction profileFunction) {
+    public void uploadTempTarget(TemporaryTarget tempTarget) {
         try {
             JSONObject data = new JSONObject();
             data.put("eventType", CareportalEvent.TEMPORARYTARGET);
-            data.put("duration", tempTarget.durationInMinutes);
-            if (tempTarget.low > 0) {
-                data.put("reason", tempTarget.reason);
-                data.put("targetBottom", Profile.fromMgdlToUnits(tempTarget.low, profileFunction.getUnits()));
-                data.put("targetTop", Profile.fromMgdlToUnits(tempTarget.high, profileFunction.getUnits()));
+            data.put("duration", tempTarget.getDuration());
+            if (tempTarget.getLowTarget() > 0) {
+                data.put("reason", tempTarget.getReason().getText());
+                data.put("targetBottom", Profile.fromMgdlToUnits(tempTarget.getLowTarget(), profileFunction.getUnits()));
+                data.put("targetTop", Profile.fromMgdlToUnits(tempTarget.getHighTarget(), profileFunction.getUnits()));
                 data.put("units", profileFunction.getUnits());
             }
-            data.put("created_at", DateUtil.toISOString(tempTarget.date));
+            data.put("created_at", DateUtil.toISOString(tempTarget.getDateCreated()));
+            data.put("enteredBy", "AndroidAPS");
+            uploadCareportalEntryToNS(data);
+        } catch (JSONException e) {
+            aapsLogger.error("Unhandled exception", e);
+        }
+    }
+
+    public void uploadCancelTempTarget(long timeSTamp) {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("eventType", CareportalEvent.TEMPORARYTARGET);
+            data.put("duration", 0);
+            data.put("created_at", DateUtil.toISOString(timeSTamp));
             data.put("enteredBy", "AndroidAPS");
             uploadCareportalEntryToNS(data);
         } catch (JSONException e) {

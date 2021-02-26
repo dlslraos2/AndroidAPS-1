@@ -5,6 +5,7 @@ import android.text.Spanned
 import android.util.LongSparseArray
 import dagger.android.HasAndroidInjector
 import info.nightscout.androidaps.R
+import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.db.TDD
 import info.nightscout.androidaps.interfaces.ActivePluginProvider
 import info.nightscout.androidaps.interfaces.ProfileFunction
@@ -38,8 +39,9 @@ class TddCalculator @Inject constructor(
     fabricPrivacy: FabricPrivacy,
     nsUpload: NSUpload,
     private val dateUtil: DateUtil,
-    uploadQueue: UploadQueue
-) : TreatmentsPlugin(injector, aapsLogger, rxBus, aapsSchedulers, resourceHelper, context, sp, profileFunction, activePlugin, nsUpload, fabricPrivacy, dateUtil, uploadQueue) {
+    uploadQueue: UploadQueue,
+    repository: AppRepository
+) : TreatmentsPlugin(injector, aapsLogger, rxBus, aapsSchedulers, resourceHelper, context, sp, profileFunction, activePlugin, nsUpload, fabricPrivacy, dateUtil, uploadQueue, repository) {
 
     init {
         service = TreatmentService(injector) // plugin is not started

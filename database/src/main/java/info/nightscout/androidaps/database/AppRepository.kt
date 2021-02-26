@@ -11,6 +11,7 @@ import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
+import java.sql.Wrapper
 import java.util.concurrent.Callable
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -105,6 +106,19 @@ class AppRepository @Inject internal constructor(
 
     fun getTemporaryTargetsCorrespondingLastHistoryRecord(lastId: Long): TemporaryTarget? =
         database.temporaryTargetDao.getLastHistoryRecord(lastId)
+
+    fun getTemporaryTargetActiveAt(timestamp: Long): Single<ValueWrapper<TemporaryTarget>> =
+        database.temporaryTargetDao.getTemporaryTargetActiveAt(timestamp).toWrappedSingle()
+
+    fun deleteAllTempTargetEntries() =
+        database.temporaryTargetDao.deleteAllEntries()
+
+    fun delete(temporaryTarget: TemporaryTarget) =
+        database.temporaryTargetDao.delete(temporaryTarget.id)
+
+    fun deleteTemporaryTargetByNSId(nsId: String) {
+        database.temporaryTargetDao.deleteByNSIdMaybe(nsId)
+    }
 
     // USER ENTRY
     fun getAllUserEntries(): Single<List<UserEntry>> =

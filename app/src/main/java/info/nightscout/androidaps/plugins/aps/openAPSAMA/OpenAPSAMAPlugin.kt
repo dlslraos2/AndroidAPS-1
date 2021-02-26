@@ -4,6 +4,7 @@ import android.content.Context
 import dagger.android.HasAndroidInjector
 import info.nightscout.androidaps.R
 import info.nightscout.androidaps.data.Profile
+import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.interfaces.*
 import info.nightscout.androidaps.logging.AAPSLogger
 import info.nightscout.androidaps.logging.LTag
@@ -20,6 +21,7 @@ import info.nightscout.androidaps.utils.FabricPrivacy
 import info.nightscout.androidaps.utils.HardLimits
 import info.nightscout.androidaps.utils.Profiler
 import info.nightscout.androidaps.utils.Round
+import info.nightscout.androidaps.utils.extensions.target
 import info.nightscout.androidaps.utils.resources.ResourceHelper
 import org.json.JSONException
 import javax.inject.Inject
@@ -39,7 +41,9 @@ open class OpenAPSAMAPlugin @Inject constructor(
     private val iobCobCalculatorPlugin: IobCobCalculatorPlugin,
     private val hardLimits: HardLimits,
     private val profiler: Profiler,
-    private val fabricPrivacy: FabricPrivacy
+    private val fabricPrivacy: FabricPrivacy,
+    private val dateUtil: DateUtil,
+    private val repository: AppRepository
 ) : PluginBase(PluginDescription()
     .mainType(PluginType.APS)
     .fragmentClass(OpenAPSAMAFragment::class.java.name)
@@ -112,10 +116,10 @@ open class OpenAPSAMAPlugin @Inject constructor(
         var maxBg = hardLimits.verifyHardLimits(Round.roundTo(profile.targetHighMgdl, 0.1), "maxBg", hardLimits.VERY_HARD_LIMIT_MAX_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_MAX_BG[1].toDouble())
         var targetBg = hardLimits.verifyHardLimits(profile.targetMgdl, "targetBg", hardLimits.VERY_HARD_LIMIT_TARGET_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TARGET_BG[1].toDouble())
         var isTempTarget = false
-        treatmentsPlugin.getTempTargetFromHistory(System.currentTimeMillis())?.let { tempTarget ->
+        repository.getTemporaryTargetActiveAt(dateUtil._now())?.let { tempTarget ->
             isTempTarget = true
-            minBg = hardLimits.verifyHardLimits(tempTarget.low, "minBg", hardLimits.VERY_HARD_LIMIT_TEMP_MIN_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TEMP_MIN_BG[1].toDouble())
-            maxBg = hardLimits.verifyHardLimits(tempTarget.high, "maxBg", hardLimits.VERY_HARD_LIMIT_TEMP_MAX_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TEMP_MAX_BG[1].toDouble())
+            minBg = hardLimits.verifyHardLimits(tempTarget.lowTarget, "minBg", hardLimits.VERY_HARD_LIMIT_TEMP_MIN_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TEMP_MIN_BG[1].toDouble())
+            maxBg = hardLimits.verifyHardLimits(tempTarget.highTarget, "maxBg", hardLimits.VERY_HARD_LIMIT_TEMP_MAX_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TEMP_MAX_BG[1].toDouble())
             targetBg = hardLimits.verifyHardLimits(tempTarget.target(), "targetBg", hardLimits.VERY_HARD_LIMIT_TEMP_TARGET_BG[0].toDouble(), hardLimits.VERY_HARD_LIMIT_TEMP_TARGET_BG[1].toDouble())
         }
         if (!hardLimits.checkOnlyHardLimits(profile.dia, "dia", hardLimits.minDia(), hardLimits.maxDia())) return

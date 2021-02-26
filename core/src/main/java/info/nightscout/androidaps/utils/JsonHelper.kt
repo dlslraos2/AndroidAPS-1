@@ -129,6 +129,17 @@ object JsonHelper {
         return result
     }
 
+    fun safeGetLongAllowNull(json: JSONObject?, fieldName: String, defaultValue: Long? = null): Long? {
+        var result: Long? = defaultValue
+        if (json != null && json.has(fieldName)) {
+            try {
+                result = json.getLong(fieldName)
+            } catch (ignored: JSONException) {
+            }
+        }
+        return result
+    }
+
     @JvmStatic
     fun safeGetBoolean(json: JSONObject?, fieldName: String): Boolean {
         var result = false
