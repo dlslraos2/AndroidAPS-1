@@ -178,9 +178,7 @@ class TempTargetDialog : DialogFragmentWithDate() {
                 if (target == 0.0 || duration == 0) {
                     disposable += repository.runTransactionForResult(CancelCurrentTemporaryTargetIfAnyTransaction(eventTime))
                         .subscribe({ result ->
-                            result.canceled.forEach {
-                                nsUpload.uploadCancelTempTarget(it.end)
-                            }
+                            result.updated.forEach { nsUpload.updateTempTarget(it) }
                         }, {
                             aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                         })
@@ -197,9 +195,8 @@ class TempTargetDialog : DialogFragmentWithDate() {
                         lowTarget = Profile.toMgdl(target, profileFunction.getUnits()),
                         highTarget = Profile.toMgdl(target, profileFunction.getUnits())
                     )).subscribe({ result ->
-                        result.inserted.forEach {
-                            nsUpload.uploadTempTarget(it)
-                        }
+                        result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                        result.updated.forEach { nsUpload.updateTempTarget(it) }
                     }, {
                         aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                     })

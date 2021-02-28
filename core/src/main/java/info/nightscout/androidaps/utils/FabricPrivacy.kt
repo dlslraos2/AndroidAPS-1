@@ -79,7 +79,7 @@ class FabricPrivacy @Inject constructor(
     // Crashlytics logException
     fun logException(throwable: Throwable) {
         FirebaseCrashlytics.getInstance().recordException(throwable)
-        aapsLogger.debug(LTag.CORE, "Exception: ", throwable)
+        aapsLogger.error(LTag.CORE, "Exception: ", throwable)
     }
 
     fun fabricEnabled(): Boolean {

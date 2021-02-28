@@ -16,14 +16,15 @@ class InsertTemporaryTargetAndCancelCurrentTransaction(
         if (current != null) {
             current.end = temporaryTarget.timestamp
             database.temporaryTargetDao.updateExistingEntry(current)
-            result.inserted.add(current)
+            result.updated.add(current)
         }
         database.temporaryTargetDao.insertNewEntry(temporaryTarget)
+        result.inserted.add(temporaryTarget)
         return result
     }
 
     class TransactionResult {
-
         val inserted = mutableListOf<TemporaryTarget>()
+        val updated = mutableListOf<TemporaryTarget>()
     }
 }

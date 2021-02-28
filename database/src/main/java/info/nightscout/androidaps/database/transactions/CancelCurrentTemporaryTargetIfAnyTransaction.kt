@@ -13,13 +13,13 @@ class CancelCurrentTemporaryTargetIfAnyTransaction(
         if (current != null) {
             current.end = timestamp
             database.temporaryTargetDao.updateExistingEntry(current)
-            result.canceled.add(current)
+            result.updated.add(current)
         }
         return result
     }
 
     class TransactionResult {
 
-        val canceled = mutableListOf<TemporaryTarget>()
+        val updated = mutableListOf<TemporaryTarget>()
     }
 }

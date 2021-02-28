@@ -15,15 +15,19 @@ import info.nightscout.androidaps.database.AppRepository
 import info.nightscout.androidaps.database.ValueWrapper
 import info.nightscout.androidaps.database.entities.TemporaryTarget
 import info.nightscout.androidaps.database.interfaces.end
+import info.nightscout.androidaps.database.transactions.InvalidateTemporaryTargetTransaction
 import info.nightscout.androidaps.databinding.TreatmentsTemptargetFragmentBinding
 import info.nightscout.androidaps.databinding.TreatmentsTemptargetItemBinding
 import info.nightscout.androidaps.events.EventTempTargetChange
 import info.nightscout.androidaps.interfaces.ProfileFunction
+import info.nightscout.androidaps.logging.AAPSLogger
+import info.nightscout.androidaps.logging.LTag
 import info.nightscout.androidaps.logging.UserEntryLogger
 import info.nightscout.androidaps.plugins.bus.RxBusWrapper
 import info.nightscout.androidaps.plugins.general.nsclient.NSUpload
 import info.nightscout.androidaps.plugins.general.nsclient.UploadQueue
 import info.nightscout.androidaps.plugins.general.nsclient.events.EventNSClientRestart
+import info.nightscout.androidaps.plugins.treatments.events.EventTreatmentUpdateGui
 import info.nightscout.androidaps.plugins.treatments.fragments.TreatmentsTempTargetFragment.RecyclerViewAdapter.TempTargetsViewHolder
 import info.nightscout.androidaps.utils.DateUtil
 import info.nightscout.androidaps.utils.FabricPrivacy
@@ -37,8 +41,10 @@ import info.nightscout.androidaps.utils.extensions.toVisibility
 import info.nightscout.androidaps.utils.resources.ResourceHelper
 import info.nightscout.androidaps.utils.rx.AapsSchedulers
 import info.nightscout.androidaps.utils.sharedPreferences.SP
+import io.reactivex.Completable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.rxkotlin.plusAssign
+import io.reactivex.rxkotlin.subscribeBy
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -46,6 +52,7 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
 
     @Inject lateinit var sp: SP
     @Inject lateinit var rxBus: RxBusWrapper
+    @Inject lateinit var aapsLogger: AAPSLogger
     @Inject lateinit var profileFunction: ProfileFunction
     @Inject lateinit var resourceHelper: ResourceHelper
     @Inject lateinit var nsUpload: NSUpload
@@ -59,9 +66,9 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
 
     private val disposable = CompositeDisposable()
 
-    private var _binding: TreatmentsTemptargetFragmentBinding? = null
-
     private val millsToThePast = T.days(30).msecs()
+
+    private var _binding: TreatmentsTemptargetFragmentBinding? = null
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -73,18 +80,27 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         binding.recyclerview.setHasFixedSize(true)
         binding.recyclerview.layoutManager = LinearLayoutManager(view.context)
-//        binding.recyclerview.adapter = RecyclerViewAdapter(repository.compatGetTemporaryTargetData())
         binding.refreshFromNightscout.setOnClickListener {
             context?.let { context ->
                 OKDialog.showConfirmation(context, resourceHelper.gs(R.string.refresheventsfromnightscout) + " ?", {
                     uel.log("TT NS REFRESH")
-                    repository.deleteAllTempTargetEntries()
+                    disposable += Completable.fromAction { repository.deleteAllTempTargetEntries() }
+                        .subscribeOn(aapsSchedulers.io)
+                        .observeOn(aapsSchedulers.main)
+                        .subscribeBy(
+                            onError = { aapsLogger.error("Error removing entries", it) },
+                            onComplete = { rxBus.send(EventTempTargetChange()) }
+                        )
+
                     rxBus.send(EventNSClientRestart())
                 })
             }
         }
         val nsUploadOnly = sp.getBoolean(R.string.key_ns_upload_only, true) || !buildHelper.isEngineeringMode()
-        if (nsUploadOnly) binding.refreshFromNightscout.visibility = View.GONE
+        if (nsUploadOnly) binding.refreshFromNightscout.visibility = View.INVISIBLE
+        binding.showInvalidated.setOnCheckedChangeListener { _, _ ->
+            rxBus.send(EventTreatmentUpdateGui())
+        }
     }
 
     @Synchronized
@@ -92,7 +108,7 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
         super.onResume()
         val now = System.currentTimeMillis()
         disposable += repository
-            .compatGetTemporaryTargetDataFromTime(now - millsToThePast, false)
+            .getTemporaryTargetDataIncludingInvalidFromTime(now - millsToThePast, false)
             .observeOn(aapsSchedulers.main)
             .subscribe { list -> binding.recyclerview.adapter = RecyclerViewAdapter(list) }
 
@@ -101,10 +117,35 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
             .observeOn(aapsSchedulers.io)
             .debounce(1L, TimeUnit.SECONDS)
             .subscribe({
-                disposable += repository
-                    .compatGetTemporaryTargetDataFromTime(now - millsToThePast, false)
-                    .observeOn(aapsSchedulers.main)
-                    .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
+                disposable +=
+                    if (binding.showInvalidated.isChecked)
+                        repository
+                            .getTemporaryTargetDataIncludingInvalidFromTime(now - millsToThePast, false)
+                            .observeOn(aapsSchedulers.main)
+                            .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
+                    else
+                        repository
+                            .getTemporaryTargetDataFromTime(now - millsToThePast, false)
+                            .observeOn(aapsSchedulers.main)
+                            .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
+            }, fabricPrivacy::logException)
+
+        disposable += rxBus
+            .toObservable(EventTreatmentUpdateGui::class.java) // TODO join with above
+            .observeOn(aapsSchedulers.io)
+            .debounce(1L, TimeUnit.SECONDS)
+            .subscribe({
+                disposable +=
+                    if (binding.showInvalidated.isChecked)
+                        repository
+                            .getTemporaryTargetDataIncludingInvalidFromTime(now - millsToThePast, false)
+                            .observeOn(aapsSchedulers.main)
+                            .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
+                    else
+                        repository
+                            .getTemporaryTargetDataFromTime(now - millsToThePast, false)
+                            .observeOn(aapsSchedulers.main)
+                            .subscribe { list -> binding.recyclerview.swapAdapter(RecyclerViewAdapter(list), true) }
             }, fabricPrivacy::logException)
     }
 
@@ -134,6 +175,8 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
             val units = profileFunction.getUnits()
             val tempTarget = tempTargetList[position]
             holder.binding.ns.visibility = (tempTarget.interfaceIDs.nightscoutSystemId != null).toVisibility()
+            holder.binding.invalid.visibility = tempTarget.isValid.not().toVisibility()
+            holder.binding.remove.visibility = tempTarget.isValid.toVisibility()
             holder.binding.date.text = dateUtil.dateAndTimeString(tempTarget.timestamp) + " - " + dateUtil.timeString(tempTarget.end)
             holder.binding.duration.text = resourceHelper.gs(R.string.format_mins, T.msecs(tempTarget.duration).mins())
             holder.binding.low.text = tempTarget.lowValueToUnitsToString(units)
@@ -165,10 +208,14 @@ class TreatmentsTempTargetFragment : DaggerFragment() {
                         """.trimIndent(),
                             { _: DialogInterface?, _: Int ->
                                 uel.log("TT REMOVE", tempTarget.friendlyDescription(profileFunction.getUnits(), resourceHelper))
-                                val id = tempTarget.interfaceIDs.nightscoutSystemId
-                                if (NSUpload.isIdValid(id)) nsUpload.removeCareportalEntryFromNS(id)
-                                else uploadQueue.removeID("dbAdd", id)
-                                repository.delete(tempTarget)
+                                disposable += repository.runTransactionForResult(InvalidateTemporaryTargetTransaction(tempTarget.id))
+                                    .subscribe({
+                                        val id = tempTarget.interfaceIDs.nightscoutSystemId
+                                        if (NSUpload.isIdValid(id)) nsUpload.removeCareportalEntryFromNS(id)
+                                        else uploadQueue.removeID("dbAdd", id)
+                                    }, {
+                                        aapsLogger.error(LTag.BGSOURCE, "Error while invalidating temporary target", it)
+                                    })
                             }, null)
                     }
                 }

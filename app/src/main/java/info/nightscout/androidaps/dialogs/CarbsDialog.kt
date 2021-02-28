@@ -229,9 +229,8 @@ class CarbsDialog : DialogFragmentWithDate() {
                                 lowTarget = Profile.toMgdl(activityTT, profileFunction.getUnits()),
                                 highTarget = Profile.toMgdl(activityTT, profileFunction.getUnits())
                             )).subscribe({ result ->
-                                result.inserted.forEach {
-                                    nsUpload.uploadTempTarget(it)
-                                }
+                                result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                                result.updated.forEach { nsUpload.updateTempTarget(it) }
                             }, {
                                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                             })
@@ -246,9 +245,8 @@ class CarbsDialog : DialogFragmentWithDate() {
                                 lowTarget = Profile.toMgdl(eatingSoonTT, profileFunction.getUnits()),
                                 highTarget = Profile.toMgdl(eatingSoonTT, profileFunction.getUnits())
                             )).subscribe({ result ->
-                                result.inserted.forEach {
-                                    nsUpload.uploadTempTarget(it)
-                                }
+                                result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                                result.updated.forEach { nsUpload.updateTempTarget(it) }
                             }, {
                                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                             })
@@ -263,9 +261,8 @@ class CarbsDialog : DialogFragmentWithDate() {
                                 lowTarget = Profile.toMgdl(hypoTT, profileFunction.getUnits()),
                                 highTarget = Profile.toMgdl(hypoTT, profileFunction.getUnits())
                             )).subscribe({ result ->
-                                result.inserted.forEach {
-                                    nsUpload.uploadTempTarget(it)
-                                }
+                                result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                                result.updated.forEach { nsUpload.updateTempTarget(it) }
                             }, {
                                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                             })

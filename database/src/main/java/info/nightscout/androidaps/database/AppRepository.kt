@@ -11,7 +11,6 @@ import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
-import java.sql.Wrapper
 import java.util.concurrent.Callable
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,8 +23,6 @@ class AppRepository @Inject internal constructor(
     private val changeSubject = PublishSubject.create<List<DBEntry>>()
 
     fun changeObservable(): Observable<List<DBEntry>> = changeSubject.subscribeOn(Schedulers.io())
-
-    val databaseVersion = DATABASE_VERSION
 
     /**
      * Executes a transaction ignoring its result
@@ -93,15 +90,21 @@ class AppRepository @Inject internal constructor(
         database.temporaryTargetDao.compatGetTemporaryTargetData()
             .subscribeOn(Schedulers.io())
 
-    fun compatGetTemporaryTargetDataFromTime(timestamp: Long, ascending: Boolean): Single<List<TemporaryTarget>> =
+    fun getTemporaryTargetDataFromTime(timestamp: Long, ascending: Boolean): Single<List<TemporaryTarget>> =
         database.temporaryTargetDao.compatGetTemporaryTargetDataFromTime(timestamp)
             .map { if (!ascending) it.reversed() else it }
             .subscribeOn(Schedulers.io())
 
-    fun findTemporaryTargetByNSIdSingle(nsId: String): Single<ValueWrapper<TemporaryTarget>> =
-        database.temporaryTargetDao.findByNSIdMaybe(nsId)
+    fun getTemporaryTargetDataIncludingInvalidFromTime(timestamp: Long, ascending: Boolean): Single<List<TemporaryTarget>> =
+        database.temporaryTargetDao.compatGetTemporaryTargetDataIncludingInvalidFromTime(timestamp)
+            .map { if (!ascending) it.reversed() else it }
             .subscribeOn(Schedulers.io())
-            .toWrappedSingle()
+
+    fun findTemporaryTargetByNSIdSingle(nsId: String): TemporaryTarget? =
+        database.temporaryTargetDao.findByNSId(nsId)
+
+    fun findTemporaryTargetByTimestamp(timestamp: Long): TemporaryTarget? =
+        database.temporaryTargetDao.findByTimestamp(timestamp)
 
     fun getModifiedTemporaryTargetsDataFromId(lastId: Long): Single<List<TemporaryTarget>> =
         database.temporaryTargetDao.getModifiedFrom(lastId)
@@ -117,9 +120,6 @@ class AppRepository @Inject internal constructor(
 
     fun deleteAllTempTargetEntries() =
         database.temporaryTargetDao.deleteAllEntries()
-
-    fun delete(temporaryTarget: TemporaryTarget) =
-        database.temporaryTargetDao.delete(temporaryTarget.id)
 
     fun deleteTemporaryTargetByNSId(nsId: String) {
         database.temporaryTargetDao.deleteByNSIdMaybe(nsId)

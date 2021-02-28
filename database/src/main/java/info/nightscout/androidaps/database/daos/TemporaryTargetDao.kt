@@ -20,20 +20,23 @@ internal interface TemporaryTargetDao : TraceableDao<TemporaryTarget> {
     @Query("DELETE FROM $TABLE_TEMPORARY_TARGETS")
     override fun deleteAllEntries()
 
-    @Query("DELETE FROM $TABLE_TEMPORARY_TARGETS WHERE id = :id")
-    fun delete(id: Long)
-
     @Query("DELETE FROM $TABLE_TEMPORARY_TARGETS WHERE nightscoutId = :nsId AND referenceId IS NULL")
     fun deleteByNSIdMaybe(nsId: String)
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE nightscoutId = :nsId AND referenceId IS NULL")
-    fun findByNSIdMaybe(nsId: String): Maybe<TemporaryTarget>
+    fun findByNSId(nsId: String): TemporaryTarget?
+
+    @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE timestamp = :timestamp AND referenceId IS NULL")
+    fun findByTimestamp(timestamp: Long): TemporaryTarget?
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE timestamp <= :timestamp AND (timestamp + duration) > :timestamp AND referenceId IS NULL AND isValid = 1 ORDER BY timestamp DESC LIMIT 1")
     fun getTemporaryTargetActiveAt(timestamp: Long): Maybe<TemporaryTarget>
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE timestamp >= :timestamp AND isValid = 1 AND referenceId IS NULL ORDER BY timestamp ASC")
     fun compatGetTemporaryTargetDataFromTime(timestamp: Long): Single<List<TemporaryTarget>>
+
+    @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE timestamp >= :timestamp AND referenceId IS NULL ORDER BY timestamp ASC")
+    fun compatGetTemporaryTargetDataIncludingInvalidFromTime(timestamp: Long): Single<List<TemporaryTarget>>
 
     @Query("SELECT * FROM $TABLE_TEMPORARY_TARGETS WHERE isValid = 1 AND referenceId IS NULL ORDER BY timestamp ASC")
     fun compatGetTemporaryTargetData(): Single<List<TemporaryTarget>>

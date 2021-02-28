@@ -196,9 +196,8 @@ class InsulinDialog : DialogFragmentWithDate() {
                             lowTarget = Profile.toMgdl(eatingSoonTT, profileFunction.getUnits()),
                             highTarget = Profile.toMgdl(eatingSoonTT, profileFunction.getUnits())
                         )).subscribe({ result ->
-                            result.inserted.forEach {
-                                nsUpload.uploadTempTarget(it)
-                            }
+                            result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                            result.updated.forEach { nsUpload.updateTempTarget(it) }
                         }, {
                             aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                         })

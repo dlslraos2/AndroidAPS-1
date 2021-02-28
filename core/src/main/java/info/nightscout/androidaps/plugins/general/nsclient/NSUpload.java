@@ -61,6 +61,8 @@ public class NSUpload {
     private final RunningConfiguration runningConfiguration;
     private final ProfileFunction profileFunction;
 
+    public static String ISVALID = "isValid";
+
     @Inject
     public NSUpload(
             HasAndroidInjector injector,
@@ -299,6 +301,7 @@ public class NSUpload {
             JSONObject data = new JSONObject();
             data.put("eventType", CareportalEvent.TEMPORARYTARGET);
             data.put("duration", tempTarget.getDuration());
+            data.put(ISVALID, tempTarget.isValid());
             if (tempTarget.getLowTarget() > 0) {
                 data.put("reason", tempTarget.getReason().getText());
                 data.put("targetBottom", Profile.fromMgdlToUnits(tempTarget.getLowTarget(), profileFunction.getUnits()));
@@ -308,6 +311,26 @@ public class NSUpload {
             data.put("created_at", DateUtil.toISOString(tempTarget.getDateCreated()));
             data.put("enteredBy", "AndroidAPS");
             uploadCareportalEntryToNS(data);
+        } catch (JSONException e) {
+            aapsLogger.error("Unhandled exception", e);
+        }
+    }
+
+    public void updateTempTarget(TemporaryTarget tempTarget) {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("eventType", CareportalEvent.TEMPORARYTARGET);
+            data.put("duration", tempTarget.getDuration());
+            data.put(ISVALID, tempTarget.isValid());
+            if (tempTarget.getLowTarget() > 0) {
+                data.put("reason", tempTarget.getReason().getText());
+                data.put("targetBottom", Profile.fromMgdlToUnits(tempTarget.getLowTarget(), profileFunction.getUnits()));
+                data.put("targetTop", Profile.fromMgdlToUnits(tempTarget.getHighTarget(), profileFunction.getUnits()));
+                data.put("units", profileFunction.getUnits());
+            }
+            data.put("created_at", DateUtil.toISOString(tempTarget.getDateCreated()));
+            data.put("enteredBy", "AndroidAPS");
+            uploadQueue.add(new DbRequest("dbUpdate", "treatments", tempTarget.getInterfaceIDs().getNightscoutSystemId(), data));
         } catch (JSONException e) {
             aapsLogger.error("Unhandled exception", e);
         }

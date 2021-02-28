@@ -54,9 +54,8 @@ class ActionStartTempTarget(injector: HasAndroidInjector) : Action(injector) {
     override fun doAction(callback: Callback) {
         disposable += repository.runTransactionForResult(InsertTemporaryTargetAndCancelCurrentTransaction(tt()))
             .subscribe({ result ->
-                result.inserted.forEach {
-                    nsUpload.uploadTempTarget(it)
-                }
+                result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                result.updated.forEach { nsUpload.updateTempTarget(it) }
                 callback.result(PumpEnactResult(injector).success(true).comment(R.string.ok))?.run()
             }, {
                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)

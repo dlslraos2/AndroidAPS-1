@@ -33,9 +33,7 @@ class ActionStopTempTarget(injector: HasAndroidInjector) : Action(injector) {
     override fun doAction(callback: Callback) {
         disposable += repository.runTransactionForResult(CancelCurrentTemporaryTargetIfAnyTransaction(DateUtil.now()))
             .subscribe({ result ->
-                result.canceled.forEach {
-                    nsUpload.uploadCancelTempTarget(it.end)
-                }
+                result.updated.forEach { nsUpload.updateTempTarget(it) }
             }, {
                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
             })

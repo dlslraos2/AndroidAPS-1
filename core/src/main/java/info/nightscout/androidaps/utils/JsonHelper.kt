@@ -141,7 +141,8 @@ object JsonHelper {
     }
 
     @JvmStatic
-    fun safeGetBoolean(json: JSONObject?, fieldName: String): Boolean {
+    @JvmOverloads
+    fun safeGetBoolean(json: JSONObject?, fieldName: String, defaultValue: Boolean = false): Boolean {
         var result = false
         if (json != null && json.has(fieldName)) {
             try {

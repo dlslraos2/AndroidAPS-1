@@ -10,10 +10,10 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.text.Spanned;
 
+import androidx.annotation.NonNull;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SwitchPreference;
 
-import androidx.annotation.NonNull;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +31,7 @@ import info.nightscout.androidaps.MainApp;
 import info.nightscout.androidaps.R;
 import info.nightscout.androidaps.database.AppRepository;
 import info.nightscout.androidaps.database.entities.TemporaryTarget;
-import info.nightscout.androidaps.database.transactions.InsertTemporaryTargetAndCancelCurrentTransaction;
+import info.nightscout.androidaps.database.transactions.SyncTemporaryTargetTransaction;
 import info.nightscout.androidaps.db.CareportalEvent;
 import info.nightscout.androidaps.events.EventAppExit;
 import info.nightscout.androidaps.events.EventChargingState;
@@ -438,7 +438,7 @@ public class NSClientPlugin extends PluginBase {
         } else if (eventType.equals(CareportalEvent.TEMPORARYTARGET)) {
             TemporaryTarget temporaryTarget = temporaryTargetFromJson(json);
             if (temporaryTarget != null) {
-                disposable.add(repository.runTransactionForResult(new InsertTemporaryTargetAndCancelCurrentTransaction(temporaryTarget)).subscribe());
+                disposable.add(repository.runTransactionForResult(new SyncTemporaryTargetTransaction(temporaryTarget)).subscribe());
             } else {
                 aapsLogger.error("Error parsing TT json " + json.toString());
             }

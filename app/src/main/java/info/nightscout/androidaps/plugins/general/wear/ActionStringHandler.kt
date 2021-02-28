@@ -588,18 +588,15 @@ class ActionStringHandler @Inject constructor(
                 lowTarget = Profile.toMgdl(low, profileFunction.getUnits()),
                 highTarget = Profile.toMgdl(high, profileFunction.getUnits())
             )).subscribe({ result ->
-                result.inserted.forEach {
-                    nsUpload.uploadTempTarget(it)
-                }
+                result.inserted.forEach { nsUpload.uploadTempTarget(it) }
+                result.updated.forEach { nsUpload.updateTempTarget(it) }
             }, {
                 aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
             })
         else
             disposable += repository.runTransactionForResult(CancelCurrentTemporaryTargetIfAnyTransaction(System.currentTimeMillis()))
                 .subscribe({ result ->
-                    result.canceled.forEach {
-                        nsUpload.uploadCancelTempTarget(it.end)
-                    }
+                    result.updated.forEach { nsUpload.updateTempTarget(it) }
                 }, {
                     aapsLogger.error(LTag.BGSOURCE, "Error while saving temporary target", it)
                 })
